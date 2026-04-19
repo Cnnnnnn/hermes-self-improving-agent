@@ -8,6 +8,7 @@ promotion-targets:
   - /opt/data/memories/MEMORY.md
   - /opt/data/AGENTS.md
   - /opt/data/TOOLS.md
+github-repo: https://github.com/Cnnnnnn/hermes-self-improving-agent
 ---
 
 # Self-Improving Agent (Hermes Adaptation)
