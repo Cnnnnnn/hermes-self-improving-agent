@@ -2,6 +2,8 @@
 
 Hermes-adapted version of [self-improving-agent](https://github.com/peterskoett/self-improving-agent) for the [Hermes Agent](https://github.com/your-org/hermes-agent).
 
+**Repository**: https://github.com/Cnnnnnn/hermes-self-improving-agent
+
 ## What is this
 
 A skill that logs learnings, errors, and corrections to `/opt/data/.learnings/` and promotes broadly applicable patterns to persistent memory files.
