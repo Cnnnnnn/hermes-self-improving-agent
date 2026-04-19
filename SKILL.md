@@ -1,6 +1,6 @@
 ---
 name: self-improving-agent
-description: "Captures learnings, errors, and corrections for Hermes continuous improvement. Use when: (1) A command or operation fails unexpectedly, (2) User corrects Hermes ('No, that's wrong...', 'Actually...'), (3) User requests a capability that doesn't exist, (4) An external API or tool fails, (5) Hermes realizes its knowledge is outdated or incorrect, (6) A better approach is discovered for a recurring task. Review learnings at session start and before major tasks."
+description: "Captures learnings, errors, and corrections for Hermes. Triggers: /learn, user corrections, command failures, missing features. Also: review pending learnings at session start, promote recurring patterns to memory files. Hermes-specific: /opt/data/.learnings/ dir, github repo: Cnnnnnn/hermes-self-improving-agent."
 hermes-adapted: true
 learnings-dir: /opt/data/.learnings/
 promotion-targets:
@@ -300,9 +300,37 @@ grep -l "Area\*\*: config" /opt/data/.learnings/*.md
 - Link related entries
 - Escalate recurring issues
 
+## Implemented Improvements
+
+All 5 requested improvements (plus #7) are implemented:
+
+1. ✅ `/learn` fast command — `scripts/hermes-learn.py` parses input, writes to correct file
+2. ✅ Session-start pending display — `scripts/check_pending.py` runs at session start
+3. ✅ cron failure → auto-write ERR entry — `scripts/cron-task-wrapper.py` logs failures
+4. ✅ critical error → Feishu real-time notification — `cron-task-wrapper.py` sends Feishu msg for critical/high
+5. ✅ Recurrence-Count ≥ 3 → skill extraction — `review_learnings.py` detects and reports candidates
+6. ⏸️ cron heartbeat detection (not implemented)
+7. ✅ Weekly structured md report — `review_learnings.py --report` → `weekly_report.md`
+
+### cron-task-wrapper.py
+
+All 8 script-based cron tasks are wrapped with:
+```
+python3 /opt/data/skills/skills/self-improving-agent/scripts/cron-task-wrapper.py <name> <priority> <cmd...>
+```
+
+Exit codes: 0=ok, 1=task failed (logs ERR), 2=critical (logs ERR + Feishu notify)
+
 ## Weekly Cron Review Script
 
-Create `/opt/data/scripts/review_learnings.py` for automated weekly review:
+`/opt/data/scripts/review_learnings.py` — updated with full features:
+- `--report`: generate structured `weekly_report.md`
+- Default: print pending summary + high-priority items
+- Auto-detect Recurrence-Count ≥ 3 entries
+
+## Automatic Skill Extraction
+
+When a learning is valuable enough to become a reusable skill, extract it manually.
 
 ```python
 #!/usr/bin/env python3
@@ -364,10 +392,40 @@ Before extraction, verify:
 
 ## Hermes Session Start
 
-At session start, check for pending items:
+**Automatic check** — at session start, run this to check for pending high-priority learnings:
 
-```
-ls /opt/data/.learnings/*.md 2>/dev/null && echo "---" && grep -c "Status\*\*: pending" /opt/data/.learnings/*.md 2>/dev/null
+```bash
+python3 /opt/data/skills/skills/self-improving-agent/scripts/check_pending.py
 ```
 
-If pending items exist, optionally ask user: "有 N 个待处理的 learnings，需要先回顾吗？"
+**If pending high/critical items exist**, display them to user and ask: "有 N 个高优先级 learnings 待处理，要先回顾吗？"
+
+**If no pending high items**, proceed normally.
+
+## /learn Quick Command
+
+Low-friction learning logger. Use instead of manually writing entries.
+
+**Command**: `/learn <type> <content>`
+
+**Types**:
+| Type | Target File | Example |
+|------|-------------|---------|
+| `correction` | LEARNINGS.md | `/learn correction "uv run failed → use python3 directly"` |
+| `insight` | LEARNINGS.md | `/learn insight "gh api can replace git push when TLS fails"` |
+| `knowledge_gap` | LEARNINGS.md | `/learn knowledge_gap "didn't know Dexh800 has no GITHUB_TOKEN"` |
+| `best_practice` | LEARNINGS.md | `/learn best_practice "check cron times before creating new ones"` |
+| `error` | ERRORS.md | `/learn error "qveris API returned 401"` |
+| `feature` | FEATURE_REQUESTS.md | `/learn feature "want weekly summary report"` |
+
+**Script**: `python3 /opt/data/skills/skills/self-improving-agent/scripts/hermes-learn.py <type> <content>`
+
+**When to use**:
+- User corrects you → `/learn correction "..."`
+- You discover something → `/learn insight "..."`
+- User requests missing feature → `/learn feature "..."`
+- Any command/API fails → `/learn error "..."`
+- You realize knowledge gap → `/learn knowledge_gap "..."`
+- You find a better approach → `/learn best_practice "..."`
+
+**Output**: `✅ [LRN-20260420-003] 已写入 LEARNINGS.md`
